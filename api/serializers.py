@@ -3,20 +3,22 @@ from rest_framework import serializers
 from api.models import Comment, Follow, Group, Post, User
 
 
-class TextArticlesSerializer(serializers.ModelSerializer):
+class PostSerializer(serializers.ModelSerializer):
     author = serializers.SlugRelatedField(
         read_only=True,
         slug_field='username'
     )
 
-
-class PostSerializer(TextArticlesSerializer):
     class Meta:
         fields = ('id', 'text', 'author', 'pub_date')
         model = Post
 
 
-class CommentSerializer(TextArticlesSerializer):
+class CommentSerializer(serializers.ModelSerializer):
+    author = serializers.SlugRelatedField(
+        read_only=True,
+        slug_field='username'
+    )
 
     class Meta:
         fields = ('id', 'author', 'post', 'text', 'created')

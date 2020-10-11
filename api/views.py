@@ -1,37 +1,35 @@
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter
+from rest_framework.mixins import CreateModelMixin, ListModelMixin
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from rest_framework.response import Response
-from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from api.models import Follow, Group, Post, User
-from api.permissions import IsAuthorOrReadOnly
+from api.permissions import FollowingNonSelfProfile, IsAuthorOrReadOnly
 from api.serializers import (
     CommentSerializer, FollowSerializer, GroupSerializer, PostSerializer,
 )
 
 
-class TextArticlesViewSet(ModelViewSet):
+class PostsViewSet(ModelViewSet):
     permission_classes = (IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly)
-
-
-class PostsViewSet(TextArticlesViewSet):
     serializer_class = PostSerializer
     queryset = Post.objects.all()
+    filter_backends = (DjangoFilterBackend,)
     filterset_fields = ('group',)
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
 
-class CommentsViewSet(TextArticlesViewSet):
+class CommentsViewSet(ModelViewSet):
+    permission_classes = (IsAuthenticatedOrReadOnly, IsAuthorOrReadOnly)
     serializer_class = CommentSerializer
 
     def get_queryset(self):
         post = get_object_or_404(Post, id=self.kwargs.get('post_id'))
-        return post.comments
+        return post.comments.all()
 
     def perform_create(self, serializer):
         serializer.save(
@@ -40,34 +38,13 @@ class CommentsViewSet(TextArticlesViewSet):
         )
 
 
-class FollowViewSet(ModelViewSet):
+class FollowViewSet(GenericViewSet, CreateModelMixin, ListModelMixin):
+    permission_classes = (IsAuthenticatedOrReadOnly, FollowingNonSelfProfile)
     serializer_class = FollowSerializer
     queryset = Follow.objects.all()
     filter_backends = (DjangoFilterBackend, SearchFilter)
     filterset_fields = ('user',)
     search_fields = ('=user__username', '=following__username')
-
-    def create(self, request, *args, **kwargs):
-        following = request.POST.get('following')
-        if not following:
-            return super().create(request, *args, **kwargs)
-        if request.user.username == following:
-            return Response(
-                status=HTTP_403_FORBIDDEN,
-                data={'detail': 'It is forbidden to follow the own profile.'}
-            )
-        if Follow.objects.filter(
-                user=request.user,
-                following=get_object_or_404(
-                    User,
-                    username=following
-                )
-        ):
-            return Response(
-                status=HTTP_400_BAD_REQUEST,
-                data={'detail': 'Such record already exists.'}
-            )
-        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         serializer.save(
@@ -79,11 +56,7 @@ class FollowViewSet(ModelViewSet):
         )
 
 
-class GroupViewSet(ModelViewSet):
+class GroupViewSet(GenericViewSet, CreateModelMixin, ListModelMixin):
+    permission_classes = (IsAuthenticatedOrReadOnly,)
     serializer_class = GroupSerializer
     queryset = Group.objects.all()
-
-    def perform_create(self, serializer):
-        serializer.save(
-            title=self.request.POST.get('title'),
-        )
