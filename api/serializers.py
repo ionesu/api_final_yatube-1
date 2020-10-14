@@ -1,4 +1,4 @@
-from rest_framework import serializers
+from rest_framework import serializers, validators
 
 from api.models import Comment, Follow, Group, Post, User
 
@@ -21,7 +21,7 @@ class CommentSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        fields = ('id', 'author', 'post', 'text', 'created')
+        fields = '__all__'
         read_only_fields = ('post',)
         model = Comment
 
@@ -40,6 +40,12 @@ class FollowSerializer(serializers.ModelSerializer):
     class Meta:
         fields = ('user', 'following')
         model = Follow
+        validators = (
+            validators.UniqueTogetherValidator(
+                queryset=Follow.objects.all(),
+                fields=('user', 'following')
+            ),
+        )
 
 
 class GroupSerializer(serializers.ModelSerializer):
