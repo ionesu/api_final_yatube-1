@@ -8,7 +8,4 @@ class IsAuthorOrReadOnly(BasePermission):
 
 class FollowingNonSelfProfile(BasePermission):
     def has_permission(self, request, view):
-        return (
-            request.method in SAFE_METHODS
-            or request.user.username != request.POST.get('following')
-        )
+        return request.user.username != request.POST.get('following')
